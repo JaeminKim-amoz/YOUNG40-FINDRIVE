@@ -206,7 +206,7 @@ class CarScreen(private val context:Context, val design:CarDesign, private val a
         }
         val consent=surface(32)
         consent.addView(design.text("함께 수색을 시작해요",34,true));consent.addView(design.space(20))
-        consent.addView(design.text("반려동물 정보와 실종·목격 위치를\n같은 서버의 참여자에게 공유합니다.",26))
+        consent.addView(design.text("참여자에게 대략적인 수색 구역을 공유합니다.\n정확한 신고 위치는 보호자와 연결 차량, 운영자가 봅니다.",26))
         consent.addView(design.space(16));consent.addView(design.text("수색 자료는 삭제할 때까지, 첨부 자료는 7일 보관합니다. 차량 카메라 원본은 사용하지 않습니다.",24,false,c.muted))
         consent.addAction(action("공유에 동의하고 시작하기",true,CarGlyph.LINK,true){actions.connect()})
         consent.addAction(action("개인정보·위치정보 안내",glyph=CarGlyph.SHIELD){actions.policy()})

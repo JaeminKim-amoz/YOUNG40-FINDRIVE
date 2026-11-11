@@ -3,7 +3,7 @@ android {
     namespace = "app.findrive.car"
     compileSdk = 35
     useLibrary("android.car", false)
-    defaultConfig { applicationId = providers.gradleProperty("findriveApplicationId").getOrElse("app.findrive.car"); minSdk = 28; targetSdk = 35; versionCode = 5; versionName = "0.5.0"; testInstrumentationRunner = "app.findrive.car.PleosSdkInstrumentation"
+    defaultConfig { applicationId = providers.gradleProperty("findriveApplicationId").getOrElse("app.findrive.car"); minSdk = 28; targetSdk = 35; versionCode = 6; versionName = "0.5.1"; testInstrumentationRunner = "app.findrive.car.PleosSdkInstrumentation"
         val serviceUrl = providers.gradleProperty("findriveServiceUrl").orElse(providers.environmentVariable("FINDRIVE_SERVICE_URL")).getOrElse("")
         require(serviceUrl.isEmpty() || serviceUrl.matches(Regex("https?://[A-Za-z0-9.:-]+"))) { "Use a server origin without credentials or a path" }
         buildConfigField("String", "SERVICE_URL", "\"$serviceUrl\"")

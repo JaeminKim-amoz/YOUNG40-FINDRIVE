@@ -83,10 +83,9 @@ class MainActivity:Activity(),CarActions {
         super.onCreate(savedInstanceState)
         simulatedParked=savedInstanceState?.getBoolean("simulatedParked",true)?:true
         runCatching {
-            snapshot=JSONObject(prefs.getString("snapshot",snapshot.toString())!!)
+            // Discard responses saved by earlier releases before displaying any report.
+            prefs.edit().remove("snapshot").remove("plans").remove("road-plans").apply()
             pending=JSONArray(prefs.getString("pending","[]")!!)
-            plans=JSONArray(prefs.getString("plans","[]")!!)
-            roadPlans=JSONObject(prefs.getString("road-plans","{}")!!)
             token=vault.read();lastSync=prefs.getString("last-sync","")?:""
         }.onFailure{prefs.edit().putBoolean("connected",false).apply()}
         design=CarDesign(this);screen=CarScreen(this,design,this,savedInstanceState)
@@ -116,6 +115,7 @@ class MainActivity:Activity(),CarActions {
     override fun onStop() {
         started=false;epoch++;busy=false;readingDrive=false;vehicle=VehicleState();handler.removeCallbacksAndMessages(null)
         dialog?.dismiss();dialog=null;dialogAction=null;gateway?.close();gateway=null
+        clearReportView()
         locationManager.removeUpdates(locationListener);lastLocation=null;updateSafety();super.onStop()
     }
     override fun onDestroy(){io.shutdown();super.onDestroy()}
@@ -164,6 +164,10 @@ class MainActivity:Activity(),CarActions {
         }
         if(allowed&&!wasSafe&&connected())handler.post{if(safe())synchronize()}
         wasSafe=allowed
+    }
+    private fun clearReportView() {
+        snapshot=emptySnapshot();plans=JSONArray();roadPlans=JSONObject()
+        render()
     }
     private fun render(){screen.update(CarContent(connected(),prefs.getBoolean("paired",false),snapshot,plans,pending.length()+localPasses.length(),point(),vehicle.navigationReady,roadPlans,localPasses,driveStore.active,driveStore.status,driveRevision))}
     private fun refreshDrive() {
@@ -220,7 +224,7 @@ class MainActivity:Activity(),CarActions {
                 if(area!=null && area==plan.area(area.radius))retainedPlans.put(id,old)
             }
             val now=java.text.SimpleDateFormat("HH:mm",java.util.Locale.KOREA).format(java.util.Date())
-            check(prefs.edit().putString("snapshot",received.toString()).putString("plans",nextPlans.toString()).putString("road-plans",retainedPlans.toString()).putString("pending",remaining.toString()).putString("last-sync",now).commit()){"기기에 저장하지 못했습니다"}
+            check(prefs.edit().putString("pending",remaining.toString()).putString("last-sync",now).commit()){"기기에 저장하지 못했습니다"}
             snapshot=received;plans=nextPlans;pending=remaining;lastSync=now;roadPlans=retainedPlans
             val settled=result.optJSONArray("settledPassIds")
             if(settled!=null && settled.length()>0) {
@@ -251,7 +255,7 @@ class MainActivity:Activity(),CarActions {
             else {
                 runRequest({ConnectionClient.request(base(),"/v1/pairings/claim",token,JSONObject().put("code",code))}){result->
                     token=result.getString("token");vault.save(token);prefs.edit().putBoolean("paired",true).apply()
-                    screen.showNotice("휴대폰과 연결됐습니다.",warning=false);render();synchronize()
+                    clearReportView();screen.showNotice("휴대폰과 연결됐습니다.",warning=false);synchronize()
                 };true
             }
         }
@@ -312,7 +316,6 @@ class MainActivity:Activity(),CarActions {
         runRequest({ConnectionClient.request(endpoint,"/v1/reports/${area.reportId}/roads?radius=${area.radius}",credential,method="GET",timeoutMs=20000)}){result->
             check(result.area()==area){"수색 기준이 바뀌었습니다. 신고를 새로고침해 주세요."}
             val next=JSONObject(roadPlans.toString()).put(area.reportId,result)
-            check(prefs.edit().putString("road-plans",next.toString()).commit()){"도로 계획을 저장하지 못했습니다."}
             roadPlans=next;screen.showNotice("");render()
         }
     }
@@ -320,7 +323,7 @@ class MainActivity:Activity(),CarActions {
         if(BuildConfig.SIMULATION){screen.showNotice("도로 계획을 확인할 수 있습니다. 차량 주행 기록과 길 안내는 Pleos 앱에서 시작해 주세요.");return}
         if(driveStore.active!=null && driveStore.active!=area){screen.showNotice("진행 중인 수색을 종료한 뒤 다른 반경을 선택해 주세요.");return}
         val recording=driveStore.active==area
-        val detail=(if(recording)"" else "선택한 반경 안의 위치와 통과 시각을 참여자와 공유합니다. 길 안내 중에도 기록하며, 종료 버튼 또는 2시간 뒤에 멈춥니다.")+
+        val detail=(if(recording)"" else "내 이동 경로는 이 차량과 연결된 내 기기, 운영자가 볼 수 있습니다. 길 안내 중에도 기록하며, 종료 버튼 또는 2시간 뒤에 멈춥니다.")+
             (if(road!=null)"\n${road.name}의 진입점과 종점으로 안내합니다. 내비게이션이 정하는 연결 경로는 반경 밖을 지날 수 있습니다." else "")
         confirm(if(road==null)"주행을 기록할까요?" else "이 구간으로 안내할까요?",detail.trim(),if(recording)"길 안내 시작" else "수색 시작") {
             if(recording) {navigateRoad(road);return@confirm}
@@ -376,7 +379,7 @@ class MainActivity:Activity(),CarActions {
     override fun policy() {
         val text=design.text(
             "수집\n기기 연결 정보, 반려동물 정보, 실종·목격 위치와 시각, 수색 경로.\n\n"+
-            "목적\n공동 수색과 길 안내. 수색 계획 시 주변 지도 타일을 OpenFreeMap에, 반경 안의 코스 후보 좌표를 도로 서비스에 요청합니다. 차량에서 주행 기록을 시작하면 길 안내 중에도 반경 안의 위치와 통과 시각을 기록해 참여자에게 공유합니다. 화면이나 알림에서 종료할 수 있으며 최대 2시간 뒤 멈춥니다.\n\n"+
+            "목적\n공동 수색과 길 안내. 수색 계획 시 주변 지도 타일을 OpenFreeMap에, 반경 안의 코스 후보 좌표를 도로 서비스에 요청합니다. 차량에서 주행 기록을 시작하면 길 안내 중에도 반경 안의 위치와 통과 시각을 기록합니다. 주행자와 그 계정의 연결 기기, 운영자가 열람할 수 있습니다. 화면이나 알림에서 종료할 수 있으며 최대 2시간 뒤 멈춥니다.\n\n"+
             "보관\n수색 자료는 직접 삭제할 때까지, 전송한 사진·영상은 7일.\n\n"+
             "철회\n차량 연결 해제는 이 차량의 자료와 권한을 지웁니다. 전체 자료 삭제는 휴대폰 설정의 ‘동의 철회·내 자료 삭제’에서 진행하세요.\n\n"+
             "동의하지 않으면 공유 기능을 사용하지 않습니다.\n팀 테스트 안내 · 2026-11-11",24,lines=Int.MAX_VALUE)
