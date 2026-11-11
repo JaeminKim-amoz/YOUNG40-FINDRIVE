@@ -308,6 +308,44 @@ class MainActivity:Activity(),CarActions {
             else {selected(meters);true}
         }
     }
+    override fun exampleCourse() {
+        if (driveStore.active != null) {
+            screen.showNotice("진행 중인 주행 기록을 종료한 뒤 체험해 주세요.")
+            return
+        }
+        val endpoint = base()
+        screen.showNotice("서울숲 예시 코스를 불러오고 있습니다.", false)
+        runRequest({
+            val remote = runCatching {
+                ConnectionClient.request(endpoint, "/v1/examples/seoul-forest", method = "GET", timeoutMs = 3500)
+                    .also { check(it.optInt("version") == 1 && it.optJSONObject("course")?.road(true) != null) }
+            }
+            val data = remote.getOrElse {
+                resources.openRawResource(R.raw.seoul_forest_course).bufferedReader().use { reader -> JSONObject(reader.readText()) }
+            }
+            data.put("bundled", remote.isFailure)
+        }) { data ->
+            screen.showNotice("")
+            val course = checkNotNull(data.getJSONObject("course").road(true))
+            val radius = data.getInt("radiusMeters")
+            val area = DriveArea("seoul-forest-example", null, 0, data.getJSONObject("center").coord(), radius)
+            val panel = design.column()
+            val length = String.format(java.util.Locale.KOREA, "%.1fkm", course.length / 1000.0)
+            val streets = course.streets.filter { it != "이름 없는 도로" }.distinct().joinToString(" → ")
+            panel.addView(design.text("반경 ${radius}m · 추천 코스 $length", 28, true))
+            panel.addView(design.text(streets, 23, false, design.colors.muted))
+            val map = DriveMap(this, design, area, listOf(course), course.id, emptyList(), data.heatRings(radius))
+            panel.addView(map, LinearLayout.LayoutParams(-1, design.dp(190)))
+            val source = if (data.optBoolean("bundled")) "기기에 저장된 예시" else "심사 서버 예시"
+            panel.addView(design.text("$source · 도로 © OpenStreetMap 기여자", 20, false, design.colors.muted))
+            showDialog("서울숲 예시 수색 코스", "가상 신고의 추천 코스입니다. 길 안내를 시작하면 기존 목적지가 바뀔 수 있습니다.", panel, "예시 코스로 안내") {
+                if (BuildConfig.SIMULATION) screen.showNotice("Pleos 차량 앱에서 길 안내를 시작해 주세요.")
+                else navigateRoad(course)
+                true
+            }
+        }
+    }
+
     override fun planRoads(area:DriveArea) {
         val endpoint=base();val credential=token
         if(!safe() || !connected() || busy)return

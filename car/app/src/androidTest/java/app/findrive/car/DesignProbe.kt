@@ -32,6 +32,7 @@ object DesignProbe {
                     var refreshes=0
                     var handedOff:DriveRoad?=null
                     val actions=object:CarActions {
+                        override fun exampleCourse() {}
                         override fun connect() {};override fun pair() {};override fun location() {};override fun refresh(){refreshes++}
                         override fun policy() {};override fun advanced() {};override fun disconnect() {};override fun licenses() {}
                         override fun planRoads(area:DriveArea) {};override fun drive(area:DriveArea,road:DriveRoad?) {handedOff=road};override fun stopDrive() {};override fun mapCredits(area:DriveArea) {}
