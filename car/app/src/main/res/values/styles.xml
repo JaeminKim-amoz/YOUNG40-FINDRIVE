@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.Findrive" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">@font/asta_sans</item>
+        <item name="android:colorAccent">#176348</item>
+        <item name="android:windowBackground">#F6F7F9</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+    <style name="Theme.Findrive.Dialog" parent="android:style/Theme.Material.Light.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:fontFamily">@font/asta_sans</item>
+        <item name="android:colorAccent">#176348</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+</resources>
